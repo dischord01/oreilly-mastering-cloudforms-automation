@@ -25,9 +25,11 @@ begin
   visible_services = []
   
   $evm.vmdb(:service).find(:all).each do |service|
-    $evm.log(:info, "Found service: #{service.name}")
-    if service_visible?(rbac_array, service)
-      visible_services << service
+    if service['display']
+      $evm.log(:info, "Found service: #{service.name}")
+      if service_visible?(rbac_array, service)
+        visible_services << service
+      end
     end
   end
   if visible_services.length > 0
