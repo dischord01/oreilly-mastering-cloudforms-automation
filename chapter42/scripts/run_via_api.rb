@@ -115,8 +115,8 @@ begin
     },
     :parameters => parameter_hash,
     :requester => {
-      :auto_approve => false
-      #:auto_approve => true
+      #:auto_approve => false
+      :auto_approve => true
     }
   }.to_json
   query = "/api/automation_requests"

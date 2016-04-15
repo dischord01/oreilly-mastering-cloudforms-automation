@@ -10,13 +10,18 @@ begin
     $evm.log(:info, "rbac filters: #{rbac_array}")
     rbac_array
   end
-  
+   
   def service_visible?(rbac_array, service)
+    $evm.log(:info, "Evaluating Service #{service.name}")
     rbac_array.each do |rbac_hash|
-      rbac_hash.each {|category, tag| return false unless service.tagged_with?(category, tag)}
+      rbac_hash.each do |category, tag|
+        if service.tagged_with?(category, tag)
+          $evm.log(:info, "Service: #{service.name} is visible to this user")
+          return true
+        end
+      end
     end
-    $evm.log(:info, "Service: #{service.name} is visible to this user")
-    true
+    false
   end
 
   user = $evm.root['user']
