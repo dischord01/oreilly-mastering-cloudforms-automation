@@ -1,4 +1,4 @@
-#!/usr/env ruby
+#!/usr/bin/env ruby
 #
 # run_via_api
 #
@@ -91,7 +91,7 @@ begin
     exit!
   end
 
-  url = "https://#{server}"
+  api_uri = "https://#{server}/api/"
   #
   # Turn parameter list into hash
   #
@@ -105,6 +105,17 @@ begin
   message += " using parameters: "
   message += "#{parameter_hash.inspect}"
   puts message
+  #
+  # Get an authentication token
+  #
+  rest_response = RestClient::Request.execute(method:     :get,
+                                              url:        api_uri + 'auth',
+                                              :user       => username,
+                                              :password   => password,
+                                              :headers    => {:accept => :json},
+                                              verify_ssl: false)
+  auth_token = JSON.parse(rest_response)['auth_token']
+  raise "Couldn't get an authentication token" if auth_token.nil?
   
   post_params = {
     :version => '1.1',
@@ -119,47 +130,58 @@ begin
       :auto_approve => true
     }
   }.to_json
-  query = "/api/automation_requests"
+  query = "automation_requests"
   #
   # Issue the automation request
   #
   rest_return = RestClient::Request.execute(method: :post,
-                                            url: url + query,
-                                            :user     => username,
-                                            :password => password,
-                                            :headers  => {:accept => :json},
-                                            :payload  => post_params,
+                                            url:        api_uri + query,
+                                            :headers    => {:accept        => :json, 
+                                                            'x-auth-token' => auth_token},
+                                            :payload    => post_params,
                                             verify_ssl: false)
   result = JSON.parse(rest_return)
   #
   # get the request ID
   #
   request_id = result['results'][0]['id']
-  query = "/api/automation_requests/#{request_id}"
+  query = "automation_requests/#{request_id}"
   #
   # Now we have to poll the automate engine to see when the request_state has changed to 'finished'
   #
   rest_return = RestClient::Request.execute(method: :get,
-                                            url: url + query,
-                                            :user     => username,
-                                            :password => password,
-                                            :headers  => {:accept => :json},
+                                            url:        api_uri + query,
+                                            :headers    => {:accept        => :json, 
+                                                            'x-auth-token' => auth_token},
                                             verify_ssl: false)
   result = JSON.parse(rest_return)
   request_state = result['request_state']
   until request_state == "finished"
     puts "Checking completion state..."
     rest_return = RestClient::Request.execute(method: :get,
-                                              url: url + query,
-                                              :user     => username,
-                                              :password => password,
-                                              :headers  => {:accept => :json},
+                                              url:        api_uri + query,
+                                              :headers    => {:accept        => :json, 
+                                                              'x-auth-token' => auth_token},
                                               verify_ssl: false)
     result = JSON.parse(rest_return)
     request_state = result['request_state']
     sleep 3
   end
-  puts "Results: #{result['options']['return'].inspect}"
+  puts "Request exited with status: #{result['status']}"
+  if result['status'].downcase != 'ok'
+    puts "Returned message: #{result['message']}"
+  end
+  unless result['options']['return'].nil?
+    puts "Returned results: #{result['options']['return'].inspect}"
+  end
+rescue RestClient::Exception => err
+  unless err.response.nil?
+    error = err.response
+    puts "The REST request failed with code: #{error.code}"
+    puts "The response body was:"
+    puts JSON.pretty_generate JSON.parse(error.body)
+  end
+  exit!
 rescue => err
   puts "[#{err}]\n#{err.backtrace.join("\n")}"
   exit!
