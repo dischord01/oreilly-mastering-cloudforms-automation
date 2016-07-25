@@ -91,7 +91,7 @@ begin
     exit!
   end
 
-  api_uri = "https://#{server}/api/"
+  api_uri = "https://#{server}/api"
   #
   # Turn parameter list into hash
   #
@@ -108,8 +108,9 @@ begin
   #
   # Get an authentication token
   #
+  url = URI.encode(api_uri + '/auth')
   rest_response = RestClient::Request.execute(method:     :get,
-                                              url:        api_uri + 'auth',
+                                              url:        url,
                                               :user       => username,
                                               :password   => password,
                                               :headers    => {:accept => :json},
@@ -130,12 +131,12 @@ begin
       :auto_approve => true
     }
   }.to_json
-  query = "automation_requests"
   #
   # Issue the automation request
   #
+  url = URI.encode(api_uri + '/automation_requests')
   rest_return = RestClient::Request.execute(method: :post,
-                                            url:        api_uri + query,
+                                            url:        url,
                                             :headers    => {:accept        => :json, 
                                                             'x-auth-token' => auth_token},
                                             :payload    => post_params,
@@ -145,12 +146,12 @@ begin
   # get the request ID
   #
   request_id = result['results'][0]['id']
-  query = "automation_requests/#{request_id}"
   #
   # Now we have to poll the automate engine to see when the request_state has changed to 'finished'
   #
+  url = URI.encode(api_uri + "/automation_requests/#{request_id}")
   rest_return = RestClient::Request.execute(method: :get,
-                                            url:        api_uri + query,
+                                            url:        url,
                                             :headers    => {:accept        => :json, 
                                                             'x-auth-token' => auth_token},
                                             verify_ssl: false)
@@ -159,7 +160,7 @@ begin
   until request_state == "finished"
     puts "Checking completion state..."
     rest_return = RestClient::Request.execute(method: :get,
-                                              url:        api_uri + query,
+                                              url:        url,
                                               :headers    => {:accept        => :json, 
                                                               'x-auth-token' => auth_token},
                                               verify_ssl: false)

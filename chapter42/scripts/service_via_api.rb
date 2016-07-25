@@ -56,7 +56,7 @@ begin
   parser.parse!
   
   if options[:server].nil?
-    server = "cloudforms01"
+    server = "myserver"
   else
     server = options[:server]
   end
